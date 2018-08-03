@@ -12,6 +12,7 @@ import {
 import { DataSourcesDropDown } from "./DataSourcesDropDown";
 import { MappingTemplateDropDown } from "./MappingTemplateDropDown";
 import { HookFormGroup } from "./HookFormGroup";
+import { getTemplatesForDataSource, getTemplateValue } from "./MappingTemplates";
 
 import UpsertResolver from "../../graphql/UpsertResolver.graphql";
 import GetSchema from "../../graphql/GetSchema.graphql";
@@ -27,6 +28,8 @@ const INITIAL_STATE = {
     requestMappingTemplate: "Custom",
     responseMappingTemplate: "Custom",
     isResolverSaved: true,
+    requestMappingTemplates: {},
+    responseMappingTemplates: {},
     err: ""
 };
 
@@ -82,6 +85,33 @@ class ResolverDetail extends Component {
         });
     }
 
+    onDataSourceChanged(ds) {
+        const requestMappingTemplates = getTemplatesForDataSource(ds, "requestMapping");
+        const responseMappingTemplates = getTemplatesForDataSource(ds, "responseMapping");
+
+        const { resolver } = this.state;
+
+        if (resolver) {
+            resolver.DataSource = ds;
+            this.setState({ resolver, requestMappingTemplates, responseMappingTemplates });
+        }
+    }
+
+    onTemplateChanged(type, template) {
+        const { resolver } = this.state;
+        const { DataSource } = resolver;
+        const templateValue = getTemplateValue(DataSource, type, template);
+
+        if (resolver) {
+            resolver[type] = templateValue;
+            this.setState({
+                resolver,
+                isResolverSaved: false,
+                [`${type}Template`]: template
+            });
+        }
+    }
+
     renderEmptyScreen() {
         return (
             <EmptyState className={detailEmpty}>
@@ -94,7 +124,10 @@ class ResolverDetail extends Component {
     }
 
     render() {
-        const { resolver, requestMappingTemplate, responseMappingTemplate, isResolverSaved } = this.state;
+        const {
+            resolver, requestMappingTemplate, responseMappingTemplate, isResolverSaved,
+            responseMappingTemplates, requestMappingTemplates
+        } = this.state;
 
         if (!resolver) {
             return this.renderEmptyScreen();
@@ -116,7 +149,7 @@ class ResolverDetail extends Component {
                         <FormGroup controlId="dataSource" className={detailFormGroup}>
                             <DataSourcesDropDown
                                 selected={DataSource}
-                                onDataSourceSelect={ds => this.updateResolver({ DataSource: ds })}
+                                onDataSourceSelect={ds => this.onDataSourceChanged(ds)}
                             />
                         </FormGroup>
 
@@ -124,8 +157,9 @@ class ResolverDetail extends Component {
                             <MappingTemplateDropDown
                                 label="Request Mapping Template"
                                 template={requestMappingTemplate}
+                                templates={requestMappingTemplates}
                                 text={requestMapping}
-                                onTemplateSelect={t => this.setState({ requestMappingTemplate: t })}
+                                onTemplateSelect={t => this.onTemplateChanged("requestMapping", t)}
                                 onTextChange={t => this.updateResolver({ requestMapping: t })}
                             />
                         </FormGroup>
@@ -134,8 +168,9 @@ class ResolverDetail extends Component {
                             <MappingTemplateDropDown
                                 label="Response Mapping Template"
                                 template={responseMappingTemplate}
+                                templates={responseMappingTemplates}
                                 text={responseMapping}
-                                onTemplateSelect={t => this.setState({ responseMappingTemplate: t })}
+                                onTemplateSelect={t => this.onTemplateChanged("responseMapping", t)}
                                 onTextChange={t => this.updateResolver({ responseMapping: t })}
                             />
                         </FormGroup>
